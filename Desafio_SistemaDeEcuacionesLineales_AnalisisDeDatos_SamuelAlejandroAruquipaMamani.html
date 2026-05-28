@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>DataScience Fácil: Predicción de Precio de Casa - Estabilidad Numérica</title>
+    <!-- MathJax para notación matemática -->
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" id="MathJax-script" async></script>
+    <!-- Plotly para gráficos 3D interactivos -->
+    <script src="https://cdn.plot.ly/plotly-3.0.1.min.js" charset="utf-8"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e9edf2 100%);
+            font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
+            padding: 1.5rem;
+            color: #1a2a3f;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.96);
+            border-radius: 2rem;
+            box-shadow: 0 25px 40px -12px rgba(0, 0, 0, 0.25);
+            overflow: hidden;
+            padding: 1.8rem;
+        }
+
+        h1 {
+            font-size: 1.9rem;
+            background: linear-gradient(135deg, #1e4c6f, #2c7da0);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 0.3rem;
+        }
+
+        .badge-ds {
+            background: #2c7da030;
+            border-radius: 40px;
+            padding: 0.2rem 0.8rem;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #1e5a7a;
+            display: inline-block;
+            margin-left: 0.5rem;
+            vertical-align: middle;
+        }
+
+        h2 {
+            border-left: 5px solid #2c7da0;
+            padding-left: 1rem;
+            margin: 1.5rem 0 0.8rem 0;
+            color: #1e4c6f;
+            font-weight: 600;
+        }
+
+        .sub {
+            color: #2c7da0;
+            border-bottom: 1px solid #cbd5e1;
+            margin-bottom: 1.5rem;
+            font-style: italic;
+            font-size: 0.95rem;
+        }
+
+        .escenarios-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin: 1.2rem 0;
+        }
+
+        .card-escenario {
+            flex: 1;
+            min-width: 220px;
+            background: white;
+            padding: 1rem;
+            border-radius: 1.3rem;
+            box-shadow: 0 5px 12px rgba(0, 0, 0, 0.08);
+            transition: all 0.2s ease;
+            cursor: pointer;
+            border: 1px solid #dee7ef;
+        }
+
+        .card-escenario.active {
+            background: #ecf7ff;
+            border: 2px solid #2c7da0;
+            box-shadow: 0 8px 20px rgba(44, 125, 160, 0.2);
+            transform: scale(1.01);
+        }
+
+        .card-escenario h3 {
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .panel-matrix {
+            background: #f7fafd;
+            border-radius: 1.3rem;
+            padding: 1rem;
+            margin: 1rem 0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.02), 0 2px 6px rgba(0,0,0,0.05);
+        }
+
+        .solucion-exacta {
+            background: #e6f2f9;
+            padding: 0.7rem;
+            border-radius: 1rem;
+            margin-top: 0.6rem;
+            font-family: monospace;
+        }
+
+        .tabla-metodos {
+            overflow-x: auto;
+            background: white;
+            border-radius: 1.2rem;
+            padding: 0.2rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.82rem;
+        }
+
+        th, td {
+            padding: 8px 6px;
+            text-align: center;
+            border-bottom: 1px solid #cbd5e1;
+        }
+
+        th {
+            background: #e1f0f7;
+            color: #1e4c6f;
+        }
+
+        .interactivo {
+            background: #fffcf0;
+            border-radius: 1.3rem;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .controles-slider {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            margin: 12px 0;
+        }
+
+        button {
+            background: #2c7da0;
+            border: none;
+            color: white;
+            padding: 6px 14px;
+            border-radius: 40px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 0.8rem;
+        }
+
+        button:hover {
+            background: #1e5a7a;
+            transform: scale(1.02);
+        }
+
+        .footer-note {
+            font-size: 0.72rem;
+            text-align: center;
+            margin-top: 1.8rem;
+            border-top: 1px solid #cbd5e1;
+            padding-top: 1rem;
+            color: #4a6e85;
+        }
+
+        /* Estilos corregidos para la matriz interactiva */
+        .matrix-editor {
+            margin: 15px 0;
+            padding: 12px;
+            background: #f8fafc;
+            border-radius: 1rem;
+        }
+
+        .matrix-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .matrix-cell {
+            display: inline-block;
+        }
+
+        .matrix-cell input {
+            width: 85px;
+            padding: 8px;
+            border-radius: 10px;
+            border: 1px solid #cbd5e1;
+            text-align: center;
+            font-size: 0.85rem;
+            font-family: monospace;
+            background: white;
+        }
+
+        .matrix-cell input:focus {
+            outline: none;
+            border-color: #2c7da0;
+            box-shadow: 0 0 0 2px rgba(44,125,160,0.2);
+        }
+
+        .matrix-label {
+            font-weight: 600;
+            margin: 10px 0 5px 0;
+            color: #1e4c6f;
+        }
+
+        .vector-inputs {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+
+        .vector-inputs input {
+            width: 85px;
+            padding: 8px;
+            border-radius: 10px;
+            border: 1px solid #cbd5e1;
+            text-align: center;
+            font-family: monospace;
+        }
+
+        .matrix-bracket {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #2c7da0;
+            padding: 0 5px;
+        }
+
+        .explain-text {
+            background: #eef2f5;
+            padding: 0.5rem 1rem;
+            border-radius: 1rem;
+            font-size: 0.85rem;
+            margin: 10px 0;
+        }
+
+        @media (max-width: 700px) {
+            body { padding: 0.8rem; }
+            .container { padding: 1rem; }
+            .matrix-cell input { width: 65px; padding: 5px; }
+            .vector-inputs input { width: 65px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🏠 Predicción del Precio de una Casa <span class="badge-ds">Regresión Lineal Múltiple · Ciencia de Datos</span></h1>
+    <div class="sub">📐 Sistema de ecuaciones normales: \(X^T X \beta = X^T y\) → \(A \beta = b\) &nbsp; | &nbsp; \(\beta_1\): Tamaño (m²), \(\beta_2\): Edad (años), \(\beta_3\): Ubicación (1-10)</div>
+
+    <h2>📌 Escenarios de Estabilidad Numérica</h2>
+    <div class="escenarios-grid" id="escenariosGrid">
+        <div class="card-escenario" data-scenario="ideal">
+            <h3>✅ Bien Condicionado</h3>
+            <p>Features independientes: tamaño, edad, ubicación sin correlación. Convergencia rápida.</p>
+        </div>
+        <div class="card-escenario" data-scenario="stress">
+            <h3>⚠️ Multicolinealidad</h3>
+            <p>Tamaño y número de habitaciones muy relacionados. Condicionamiento moderado.</p>
+        </div>
+        <div class="card-escenario" data-scenario="malcond">
+            <h3>🔥 Mal Condicionado</h3>
+            <p>Dos features casi idénticas (ej. "tamaño" y "tamaño_sin_patio"). Difícil convergencia.</p>
+        </div>
+    </div>
+
+    <div class="panel-matrix" id="sistemaDisplay">
+        <strong>🧮 Ecuaciones Normales del modelo de regresión:</strong><br>
+        <span id="matrizLatex">\( \)</span>
+        <div class="solucion-exacta" id="solucionExactaDiv"><strong>🔍 Solución exacta (Mínimos Cuadrados):</strong> calculando coeficientes...</div>
+    </div>
+
+    <div class="explain-text">
+        💡 <strong>Explicación fácil:</strong> Cada ecuación representa una relación entre las características de la casa. 
+        Resolver \(A\beta = b\) nos da los pesos (\(\beta_1, \beta_2, \beta_3\)) que mejor predicen el precio. 
+        Si las características están correlacionadas, la matriz \(A\) se vuelve "casi plana" y los métodos iterativos tardan más o no convergen.
+    </div>
+
+    <h2>⚙️ Comparativa de Métodos Numéricos (tol = 1e-6, max iter = 5000)</h2>
+    <div class="tabla-metodos">
+        <table id="tablaComparativa">
+            <thead>
+                <tr><th>Método</th><th>Iter. Bien Cond.</th><th>Iter. Multicol.</th><th>Iter. Mal Cond.</th><th>Converge (S/N)</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Jacobi</td><td id="jacI">—</td><td id="jacS">—</td><td id="jacM">—</td><td id="jacConv">—</td></tr>
+                <tr><td>Gauss-Seidel</td><td id="gsI">—</td><td id="gsS">—</td><td id="gsM">—</td><td id="gsConv">—</td></tr>
+                <tr><td>SOR (ω=1.25)</td><td id="sorI">—</td><td id="sorS">—</td><td id="sorM">—</td><td id="sorConv">—</td></tr>
+                <tr><td>Grad. Conjugado Precond.</td><td id="cgI">—</td><td id="cgS">—</td><td id="cgM">—</td><td id="cgConv">—</td></tr>
+                <tr><td>Factorización LU (directa)</td><td colspan="3">Solución exacta por eliminación</td><td>✅ Siempre</td></tr>
+            </tbody>
+        </table>
+        <div class="footer-note" style="margin-top: 5px;">📌 Precondicionador diagonal (Jacobi) para acelerar CG. SOR ω=1.25.</div>
+    </div>
+
+    <h2>📐 Visualización 3D: Planos del sistema y punto solución (β₁, β₂, β₃)</h2>
+    <div id="plot3d" style="height: 480px; border-radius: 1.3rem; background: #ffffff;"></div>
+
+    <h2>🎮 Laboratorio Interactivo: Modifique los coeficientes y observe la convergencia</h2>
+    <div class="interactivo">
+        <p>✏️ Edite la matriz \(A = X^TX\) (3x3) o el vector \(b = X^Ty\). Observe cómo cambian las iteraciones.</p>
+        <div id="coefEditor" class="matrix-editor"></div>
+        <div class="controles-slider">
+            <button id="btnResetIdeal">🏠 Restaurar Bien Condicionado</button>
+            <button id="btnResetStress">📊 Restaurar Multicolinealidad</button>
+            <button id="btnResetMal">⚠️ Restaurar Mal Condicionado</button>
+            <button id="btnAplicarCustom">🔄 Aplicar Cambios</button>
+        </div>
+        <div id="customStatus" style="font-size:0.8rem; color:#2c7da0; margin-top: 8px;"></div>
+    </div>
+    <div class="footer-note">
+        📚 <strong>Concepto clave:</strong> Mal condicionamiento = dos columnas casi iguales → El sistema pierde información → Métodos iterativos tardan más. 
+        En Data Science, esto ocurre con <strong>multicolinealidad</strong>. La solución: regularización (Ridge, Lasso).
+    </div>
+</div>
+
+<script>
+    // ---------- Escenarios didácticos de Data Science (predicción de precio) ----------
+    const escenarios = {
+        ideal: {
+            A: [[ 4.2, 0.5, 0.3],
+                [ 0.5, 3.8, 0.4],
+                [ 0.3, 0.4, 4.5]],
+            b: [15.0, 10.5, 13.2],
+            nombre: "Bien condicionado (κ ≈ 4.8)"
+        },
+        stress: {
+            A: [[ 7.5, 3.2, 0.8],
+                [ 3.2, 8.0, 1.0],
+                [ 0.8, 1.0, 6.2]],
+            b: [32.0, 28.5, 21.0],
+            nombre: "Multicolinealidad (κ ≈ 180)"
+        },
+        malcond: {
+            A: [[ 6.0, 5.998, 1.5],
+                [ 5.998, 6.002, 1.5],
+                [ 1.5,   1.5,   4.0]],
+            b: [27.5, 27.52, 16.0],
+            nombre: "Mal condicionado (κ > 15000)"
+        }
+    };
+
+    let currentScenario = "ideal";
+    let currentA = copyMatrix(escenarios.ideal.A);
+    let currentB = [...escenarios.ideal.b];
+
+    // Utilidades matemáticas
+    function copyMatrix(M) { return M.map(row => [...row]); }
+    function matrixVectorMul(A, x) { return A.map(row => row.reduce((s,v,i)=> s + v*x[i], 0)); }
+    function vectorNorm(v) { return Math.hypot(...v); }
+    function vectorSub(a,b) { return a.map((v,i)=> v - b[i]); }
+    function vectorAdd(a,b) { return a.map((v,i)=> v + b[i]); }
+    function vectorScale(v, alpha) { return v.map(x=> alpha*x); }
+    function vectorDot(a,b) { return a.reduce((s,v,i)=> s + v*b[i], 0); }
+
+    // Solución exacta (LU implícito - eliminación Gaussiana)
+    function solveLinearDirect(A, b) {
+        const n = A.length;
+        let M = A.map(row => [...row]);
+        let rhs = [...b];
+        for (let i = 0; i < n; i++) {
+            let maxRow = i;
+            for (let k = i+1; k < n; k++) if (Math.abs(M[k][i]) > Math.abs(M[maxRow][i])) maxRow = k;
+            if (maxRow !== i) { [M[i], M[maxRow]] = [M[maxRow], M[i]]; [rhs[i], rhs[maxRow]] = [rhs[maxRow], rhs[i]]; }
+            if (Math.abs(M[i][i]) < 1e-14) return Array(n).fill(NaN);
+            for (let k = i+1; k < n; k++) {
+                let factor = M[k][i] / M[i][i];
+                for (let j = i; j < n; j++) M[k][j] -= factor * M[i][j];
+                rhs[k] -= factor * rhs[i];
+            }
+        }
+        let x = Array(n).fill(0);
+        for (let i = n-1; i >= 0; i--) {
+            let sum = 0;
+            for (let j = i+1; j < n; j++) sum += M[i][j] * x[j];
+            x[i] = (rhs[i] - sum) / M[i][i];
+        }
+        return x;
+    }
+
+    // Jacobi
+    function jacobiMethod(A, b, tol=1e-6, maxIter=5000) {
+        const n = A.length;
+        let x = Array(n).fill(0);
+        let iter = 0;
+        for (; iter < maxIter; iter++) {
+            let xnew = Array(n).fill(0);
+            for (let i = 0; i < n; i++) {
+                let sum = 0;
+                for (let j = 0; j < n; j++) if (j !== i) sum += A[i][j] * x[j];
+                xnew[i] = (b[i] - sum) / A[i][i];
+            }
+            let diff = vectorNorm(vectorSub(xnew, x));
+            x = xnew;
+            if (diff < tol) break;
+        }
+        return { sol: x, iter: iter+1, converged: iter < maxIter };
+    }
+
+    // Gauss-Seidel
+    function gaussSeidel(A, b, tol=1e-6, maxIter=5000) {
+        const n = A.length;
+        let x = Array(n).fill(0);
+        let iter = 0;
+        for (; iter < maxIter; iter++) {
+            let xold = [...x];
+            for (let i = 0; i < n; i++) {
+                let sum1 = 0, sum2 = 0;
+                for (let j = 0; j < i; j++) sum1 += A[i][j] * x[j];
+                for (let j = i+1; j < n; j++) sum2 += A[i][j] * xold[j];
+                x[i] = (b[i] - sum1 - sum2) / A[i][i];
+            }
+            let diff = vectorNorm(vectorSub(x, xold));
+            if (diff < tol) break;
+        }
+        return { sol: x, iter: iter+1, converged: iter < maxIter };
+    }
+
+    // SOR
+    function sorMethod(A, b, omega, tol=1e-6, maxIter=5000) {
+        const n = A.length;
+        let x = Array(n).fill(0);
+        let iter = 0;
+        for (; iter < maxIter; iter++) {
+            let xold = [...x];
+            for (let i = 0; i < n; i++) {
+                let sum1 = 0, sum2 = 0;
+                for (let j = 0; j < i; j++) sum1 += A[i][j] * x[j];
+                for (let j = i+1; j < n; j++) sum2 += A[i][j] * xold[j];
+                let gs = (b[i] - sum1 - sum2) / A[i][i];
+                x[i] = (1 - omega) * xold[i] + omega * gs;
+            }
+            let diff = vectorNorm(vectorSub(x, xold));
+            if (diff < tol) break;
+        }
+        return { sol: x, iter: iter+1, converged: iter < maxIter };
+    }
+
+    // Gradiente Conjugado Precondicionado
+    function conjugateGradientPrecond(A_orig, b, tol=1e-6, maxIter=5000) {
+        const n = A_orig.length;
+        let A = Array(n).fill().map(()=>Array(n).fill(0));
+        for(let i=0;i<n;i++) for(let j=0;j<n;j++) A[i][j] = (A_orig[i][j] + A_orig[j][i])/2;
+        let x = Array(n).fill(0);
+        let r = vectorSub(b, matrixVectorMul(A, x));
+        let invDiag = A.map((row,i)=> (Math.abs(row[i])>1e-12 ? 1.0/row[i] : 1.0));
+        let z = r.map((val,i)=> val * invDiag[i]);
+        let p = [...z];
+        let rsold = vectorDot(r, z);
+        let iter = 0;
+        for(; iter < maxIter; iter++) {
+            let Ap = matrixVectorMul(A, p);
+            let alpha = rsold / vectorDot(p, Ap);
+            x = vectorAdd(x, vectorScale(p, alpha));
+            let rnew = vectorSub(r, vectorScale(Ap, alpha));
+            let znew = rnew.map((val,i)=> val * invDiag[i]);
+            let rsnew = vectorDot(rnew, znew);
+            if (Math.sqrt(rsnew) < tol) break;
+            let beta = rsnew / rsold;
+            p = vectorAdd(znew, vectorScale(p, beta));
+            r = rnew;
+            rsold = rsnew;
+            z = znew;
+        }
+        return { sol: x, iter: iter+1, converged: iter < maxIter };
+    }
+
+    function estimateConditionNumber(A) {
+        let normA = Math.max(...A.map(row => row.reduce((a,b)=>a+Math.abs(b),0)));
+        try {
+            let invFirst = solveLinearDirect(A, [1,0,0]);
+            let normInv = Math.max(...invFirst.map(Math.abs));
+            return normA * normInv;
+        } catch(e) { return 1e12; }
+    }
+
+    // Gráfico 3D de planos
+    function plotPlanesAndPoint(A, b, sol) {
+        if (!sol.every(v=>!isNaN(v) && isFinite(v))) return;
+        let traces = [];
+        const colors = ['#d62728', '#1f77b4', '#2ca02c'];
+        let eqFunc = [];
+        for(let i=0;i<3;i++) {
+            if (Math.abs(A[i][2]) > 1e-9) {
+                eqFunc.push((x,y)=> (b[i] - A[i][0]*x - A[i][1]*y) / A[i][2]);
+            } else eqFunc.push(() => NaN);
+        }
+        let grid = 25;
+        let x_vals = Array(grid+1).fill().map((_,i)=> -2 + (i/grid)*9);
+        let y_vals = Array(grid+1).fill().map((_,j)=> -2 + (j/grid)*9);
+        for(let p=0;p<3;p++) {
+            let z_vals = Array(grid+1).fill().map(()=>Array(grid+1));
+            for(let i=0;i<=grid;i++) {
+                for(let j=0;j<=grid;j++) {
+                    let zz = eqFunc[p](x_vals[i], y_vals[j]);
+                    if(isFinite(zz) && Math.abs(zz) < 12) z_vals[i][j] = zz;
+                    else z_vals[i][j] = null;
+                }
+            }
+            traces.push({
+                z: z_vals, x: x_vals, y: y_vals, type: 'surface', opacity:0.6,
+                colorscale: [[0, colors[p]], [1, colors[p]]], showscale: false, name: `Plano ${p+1}`
+            });
+        }
+        traces.push({
+            x: [sol[0]], y: [sol[1]], z: [sol[2]], mode: 'markers', type: 'scatter3d',
+            marker: { size: 9, color: 'black', symbol: 'x' }, name: 'Solución β'
+        });
+        let layout = { title: 'Planos de las ecuaciones normales y punto de intersección (β₁, β₂, β₃)', scene: { xaxis:{title:'β₁ (Tamaño)'}, yaxis:{title:'β₂ (Edad)'}, zaxis:{title:'β₃ (Ubicación)'} }, margin: {l:0,r:0,b:0,t:40} };
+        Plotly.newPlot('plot3d', traces, layout, {responsive:true});
+    }
+
+    function updateAllFromCurrent() {
+        const A = currentA, b = currentB;
+        const solExacta = solveLinearDirect(A, b);
+        const condNum = estimateConditionNumber(A);
+        document.getElementById("solucionExactaDiv").innerHTML = `<strong>🔍 Solución exacta (coeficientes de predicción):</strong> β₁ = ${solExacta[0]?.toFixed(5)}, β₂ = ${solExacta[1]?.toFixed(5)}, β₃ = ${solExacta[2]?.toFixed(5)} &nbsp; | 📊 Número de condición κ = ${condNum.toFixed(2)}`;
+        let matStr = `\\[ A = \\begin{pmatrix} ${A[0][0].toFixed(3)} & ${A[0][1].toFixed(3)} & ${A[0][2].toFixed(3)} \\\\ ${A[1][0].toFixed(3)} & ${A[1][1].toFixed(3)} & ${A[1][2].toFixed(3)} \\\\ ${A[2][0].toFixed(3)} & ${A[2][1].toFixed(3)} & ${A[2][2].toFixed(3)} \\end{pmatrix}, \\quad b = [${b[0].toFixed(3)}, ${b[1].toFixed(3)}, ${b[2].toFixed(3)}]^T \\]`;
+        document.getElementById("matrizLatex").innerHTML = matStr;
+        MathJax.typesetPromise && MathJax.typesetPromise();
+
+        const jac = jacobiMethod(A, b);
+        const gs = gaussSeidel(A, b);
+        const sor = sorMethod(A, b, 1.25);
+        const cg = conjugateGradientPrecond(A, b);
+
+        const suf = { ideal: 'I', stress: 'S', malcond: 'M' }[currentScenario];
+        document.getElementById(`jac${suf}`).innerText = jac.iter;
+        document.getElementById(`gs${suf}`).innerText = gs.iter;
+        document.getElementById(`sor${suf}`).innerText = sor.iter;
+        document.getElementById(`cg${suf}`).innerText = cg.iter;
+        document.getElementById(`jacConv`).innerText = jac.converged ? "✅ Sí" : "❌ No";
+        document.getElementById(`gsConv`).innerText = gs.converged ? "✅ Sí" : "❌ No";
+        document.getElementById(`sorConv`).innerText = sor.converged ? "✅ Sí" : "❌ No";
+        document.getElementById(`cgConv`).innerText = cg.converged ? "✅ Sí" : "❌ No";
+
+        plotPlanesAndPoint(A, b, solExacta);
+    }
+
+    // Versión corregida de la matriz interactiva - con formato visual claro
+    function buildEditorInputs() {
+        let container = document.getElementById('coefEditor');
+        container.innerHTML = '';
+        
+        // Título de la matriz
+        let matrixTitle = document.createElement('div');
+        matrixTitle.className = 'matrix-label';
+        matrixTitle.innerHTML = '📊 Matriz A (XᵀX) - Coeficientes de correlación entre features:';
+        container.appendChild(matrixTitle);
+        
+        // Crear contenedor de la matriz con corchetes visuales
+        let matrixWrapper = document.createElement('div');
+        matrixWrapper.style.display = 'flex';
+        matrixWrapper.style.justifyContent = 'center';
+        matrixWrapper.style.alignItems = 'center';
+        matrixWrapper.style.gap = '8px';
+        matrixWrapper.style.margin = '10px 0';
+        
+        let leftBracket = document.createElement('span');
+        leftBracket.className = 'matrix-bracket';
+        leftBracket.innerHTML = '⎡';
+        matrixWrapper.appendChild(leftBracket);
+        
+        let matrixGrid = document.createElement('div');
+        matrixGrid.style.display = 'flex';
+        matrixGrid.style.flexDirection = 'column';
+        matrixGrid.style.gap = '8px';
+        
+        // Crear filas de la matriz 3x3
+        for (let i = 0; i < 3; i++) {
+            let row = document.createElement('div');
+            row.style.display = 'flex';
+            row.style.gap = '8px';
+            row.style.justifyContent = 'center';
+            
+            for (let j = 0; j < 3; j++) {
+                let cell = document.createElement('div');
+                cell.className = 'matrix-cell';
+                let input = document.createElement('input');
+                input.type = 'number';
+                input.step = '0.1';
+                input.value = currentA[i][j].toFixed(4);
+                input.id = `a_${i}_${j}`;
+                input.style.width = '85px';
+                cell.appendChild(input);
+                row.appendChild(cell);
+            }
+            matrixGrid.appendChild(row);
+        }
+        
+        matrixWrapper.appendChild(matrixGrid);
+        
+        let rightBracket = document.createElement('span');
+        rightBracket.className = 'matrix-bracket';
+        rightBracket.innerHTML = '⎤';
+        matrixWrapper.appendChild(rightBracket);
+        
+        container.appendChild(matrixWrapper);
+        
+        // Vector b
+        let vectorTitle = document.createElement('div');
+        vectorTitle.className = 'matrix-label';
+        vectorTitle.style.marginTop = '15px';
+        vectorTitle.innerHTML = '📈 Vector b (Xᵀy) - Valores objetivo ponderados:';
+        container.appendChild(vectorTitle);
+        
+        let vectorWrapper = document.createElement('div');
+        vectorWrapper.style.display = 'flex';
+        vectorWrapper.style.justifyContent = 'center';
+        vectorWrapper.style.alignItems = 'center';
+        vectorWrapper.style.gap = '8px';
+        vectorWrapper.style.margin = '10px 0';
+        
+        let leftVecBracket = document.createElement('span');
+        leftVecBracket.className = 'matrix-bracket';
+        leftVecBracket.innerHTML = '⎡';
+        vectorWrapper.appendChild(leftVecBracket);
+        
+        let vectorGrid = document.createElement('div');
+        vectorGrid.style.display = 'flex';
+        vectorGrid.style.flexDirection = 'column';
+        vectorGrid.style.gap = '8px';
+        
+        for (let i = 0; i < 3; i++) {
+            let row = document.createElement('div');
+            row.style.display = 'flex';
+            row.style.justifyContent = 'center';
+            let cell = document.createElement('div');
+            cell.className = 'matrix-cell';
+            let input = document.createElement('input');
+            input.type = 'number';
+            input.step = '0.1';
+            input.value = currentB[i].toFixed(4);
+            input.id = `b_${i}`;
+            input.style.width = '85px';
+            cell.appendChild(input);
+            row.appendChild(cell);
+            vectorGrid.appendChild(row);
+        }
+        
+        vectorWrapper.appendChild(vectorGrid);
+        
+        let rightVecBracket = document.createElement('span');
+        rightVecBracket.className = 'matrix-bracket';
+        rightVecBracket.innerHTML = '⎤';
+        vectorWrapper.appendChild(rightVecBracket);
+        
+        container.appendChild(vectorWrapper);
+    }
+
+    function applyCustom() {
+        let newA = [[0,0,0],[0,0,0],[0,0,0]];
+        for(let i=0;i<3;i++) {
+            for(let j=0;j<3;j++) {
+                let val = parseFloat(document.getElementById(`a_${i}_${j}`).value);
+                if(!isNaN(val)) newA[i][j] = val;
+                else newA[i][j] = currentA[i][j];
+            }
+        }
+        let newB = [];
+        for(let i=0;i<3;i++) { 
+            let v = parseFloat(document.getElementById(`b_${i}`).value); 
+            if(!isNaN(v)) newB.push(v);
+            else newB.push(currentB[i]);
+        }
+        currentA = newA; 
+        currentB = newB;
+        updateAllFromCurrent();
+        document.getElementById('customStatus').innerHTML = '✅ Sistema actualizado. Observa cambios en iteraciones y gráfico.';
+        setTimeout(()=>document.getElementById('customStatus').innerHTML='', 2500);
+    }
+
+    function setScenario(scenarioName) {
+        currentScenario = scenarioName;
+        const sc = escenarios[scenarioName];
+        currentA = copyMatrix(sc.A);
+        currentB = [...sc.b];
+        updateAllFromCurrent();
+        buildEditorInputs();
+        document.querySelectorAll('.card-escenario').forEach(card => {
+            if(card.dataset.scenario === scenarioName) card.classList.add('active');
+            else card.classList.remove('active');
+        });
+    }
+
+    // Event listeners
+    document.getElementById('btnResetIdeal').onclick = () => setScenario('ideal');
+    document.getElementById('btnResetStress').onclick = () => setScenario('stress');
+    document.getElementById('btnResetMal').onclick = () => setScenario('malcond');
+    document.getElementById('btnAplicarCustom').onclick = applyCustom;
+    
+    document.querySelectorAll('.card-escenario').forEach(card => {
+        card.onclick = () => setScenario(card.dataset.scenario);
+    });
+
+    // Inicializar
+    setScenario('ideal');
+    buildEditorInputs();
+</script>
+</body>
+</html>
